@@ -20,8 +20,6 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://redcybershield.com"
-# You can add more if you like:
-# Repository = "https://github.com/RedCyberShield/rcs-splunk-search-runner"
 
 [project.scripts]
 splunk-search = "splunk_search:main"
