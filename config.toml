@@ -1,0 +1,14 @@
+[splunk]
+url = "https://your-splunk-host:8089"
+token = "YOUR_SPLUNK_TOKEN_HERE"
+search = "search index=_internal | head 10"
+output_file = "splunk_results.csv"
+verify_ssl = true
+poll_interval_seconds = 2
+poll_timeout_seconds = 300
+
+[logging]
+log_dir = "logs"
+# Keep logs for 7 days
+retention_days = 7
+log_level = "INFO"
