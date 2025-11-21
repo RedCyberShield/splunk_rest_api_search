@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rcs-splunk-search-runner"
+version = "0.1.0"
+description = "A small CLI tool to run Splunk searches via REST API and export results to CSV."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+  { name = "Red Cyber Shield" }
+]
+keywords = ["splunk", "rest", "search", "export", "logging"]
+dependencies = [
+  "requests>=2.31.0,<3",
+  'tomli>=2.0.1; python_version < "3.11"',
+]
+
+[project.urls]
+Homepage = "https://redcybershield.com"
+# You can add more if you like:
+# Repository = "https://github.com/RedCyberShield/rcs-splunk-search-runner"
+
+[project.scripts]
+splunk-search = "splunk_search:main"
