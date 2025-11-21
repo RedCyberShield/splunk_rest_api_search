@@ -1,35 +1,33 @@
 #!/usr/bin/env python
 """
-Cross-platform setup script for the Splunk Search Runner.
+Cross-platform setup script for the Splunk Search Runner (offline).
 
 - Detects OS (Windows / macOS / Linux)
 - Ensures Python 3.8+
 - Creates a virtual environment in ./venv
-- Installs dependencies from requirements.txt (if present)
-  or falls back to installing 'requests' and 'tomli' directly.
+- Installs dependencies ONLY from ./offline-libs using:
+    pip install --no-deps --no-index <all-wheels>
 
-Run with:
-    python setup_env.py
+No internet access required.
 """
 
-import os
 import sys
 import subprocess
 from pathlib import Path
 import platform
 
 
-def run(cmd, **kwargs):
+def run(cmd):
     print(f"Running: {' '.join(map(str, cmd))}")
-    result = subprocess.run(cmd, **kwargs)
+    result = subprocess.run(cmd)
     if result.returncode != 0:
         raise SystemExit(f"Command failed with exit code {result.returncode}")
 
 
 def main():
-    print("=== Red Cyber Shield – Splunk Search Runner Setup ===")
+    print("=== Red Cyber Shield – Offline Setup ===")
 
-    # ----- Detect OS -----
+    # ----- OS info (mostly just for logging) -----
     system = platform.system().lower()
     if "windows" in system:
         os_name = "windows"
@@ -38,60 +36,70 @@ def main():
     elif "linux" in system:
         os_name = "linux"
     else:
-        os_name = system  # fallback
-
+        os_name = system
     print(f"Detected OS: {os_name}")
 
-    # ----- Check Python version -----
+    # ----- Python version check -----
     major, minor = sys.version_info[:2]
-    print(f"Python version detected: {major}.{minor}")
+    print(f"Python version: {major}.{minor}")
     if major < 3 or (major == 3 and minor < 8):
         raise SystemExit("ERROR: Python 3.8+ is required.")
 
-    # ----- Create virtual environment -----
-    venv_dir = Path("venv")
+    project_root = Path(__file__).parent.resolve()
+    venv_dir = project_root / "venv"
+    offline_libs = project_root / "offline-libs"
+
+    # ----- Create venv if needed -----
     if not venv_dir.exists():
         print("Creating virtual environment in ./venv ...")
-        run([sys.executable, "-m", "venv", "venv"])
+        run([sys.executable, "-m", "venv", str(venv_dir)])
     else:
         print("Virtual environment ./venv already exists, skipping creation.")
 
-    # ----- Determine venv Python path -----
+    # ----- venv python path -----
     if os_name == "windows":
         venv_python = venv_dir / "Scripts" / "python.exe"
     else:
         venv_python = venv_dir / "bin" / "python"
 
     if not venv_python.exists():
-        raise SystemExit(f"ERROR: Could not find venv python at {venv_python}")
+        raise SystemExit(f"ERROR: venv python not found at {venv_python}")
 
-    # ----- Upgrade pip -----
-    print("Upgrading pip in the virtual environment...")
-    run([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"])
+    # ----- Find offline wheels -----
+    if not offline_libs.is_dir():
+        raise SystemExit(f"ERROR: offline-libs directory not found at {offline_libs}")
 
-    # ----- Install dependencies -----
-    req_file = Path("requirements.txt")
-    if req_file.is_file():
-        print("Installing dependencies from requirements.txt ...")
-        run([str(venv_python), "-m", "pip", "install", "-r", "requirements.txt"])
-    else:
-        print("requirements.txt not found, installing minimal deps directly...")
-        deps = ["requests", "tomli"]
-        run([str(venv_python), "-m", "pip", "install"] + deps)
+    wheel_files = sorted(offline_libs.glob("*.whl"))
+    if not wheel_files:
+        raise SystemExit(f"ERROR: No .whl files found in {offline_libs}")
 
-    # ----- Final instructions -----
-    print("\n=== Setup Complete ===")
-    print("Virtual environment created in ./venv and dependencies installed.\n")
+    print("Found the following offline wheels:")
+    for w in wheel_files:
+        print(f"  - {w.name}")
 
+    # ----- Install all wheels with no deps and no index -----
+    print("\nInstalling dependencies from offline-libs ...")
+    cmd = [
+        str(venv_python),
+        "-m",
+        "pip",
+        "install",
+        "--no-deps",
+        "--no-index",
+    ] + [str(w) for w in wheel_files]
+
+    run(cmd)
+
+    print("\n=== Offline setup complete ===")
     if os_name == "windows":
-        print("To activate the virtual environment, run:")
+        print("Activate the venv with:")
         print(r"  .\venv\Scripts\Activate.ps1  (PowerShell)")
         print(r"  .\venv\Scripts\activate.bat   (cmd.exe)")
     else:
-        print("To activate the virtual environment, run:")
+        print("Activate the venv with:")
         print("  source venv/bin/activate")
 
-    print("\nOnce activated, run the tool with:")
+    print("\nThen run:")
     print("  python splunk_search.py  [optional path/to/config.toml]\n")
 
 

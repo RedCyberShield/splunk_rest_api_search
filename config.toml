@@ -27,6 +27,13 @@ verify_ssl = false
 poll_interval_seconds = 2   # seconds between job status checks
 poll_timeout_seconds = 300  # max wait time before timing out
 
+# If not blank, this proxy will be used for all requests.
+# Examples:
+#   "http://user:pass@proxy.yourcorp.com:8080"
+#   "http://proxy.yourcorp.com:8080"
+# Leave as "" to disable proxy usage.
+proxy = ""
+
 [logging]
 # Directory where log files will be stored.
 # Can be relative or a full/absolute path.
