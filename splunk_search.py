@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import csv
+import json
 import sys
 import time
 import logging
@@ -78,8 +78,17 @@ def make_headers(token: str) -> dict:
     }
 
 
-def create_search_job(base_url: str, token: str, search: str, verify_ssl=True) -> str:
-    endpoint = f"{base_url}/services/search/jobs"
+def validate_output_mode(value: str) -> str:
+    mode = value.lower().strip()
+    if mode not in {"json", "csv"}:
+        raise ValueError("output_mode must be either 'json' or 'csv'")
+    return mode
+
+
+def create_search_job(
+    base_url: str, token: str, search: str, output_mode: str, verify_ssl=True
+) -> str:
+    endpoint = base_url
     headers = make_headers(token)
 
     if not search.strip().lower().startswith("search "):
@@ -87,6 +96,7 @@ def create_search_job(base_url: str, token: str, search: str, verify_ssl=True) -
 
     data = {
         "search": search,
+        # Always request JSON for the job creation response so we can parse the SID
         "output_mode": "json",
     }
 
@@ -102,7 +112,7 @@ def create_search_job(base_url: str, token: str, search: str, verify_ssl=True) -
 
 
 def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout):
-    endpoint = f"{base_url}/services/search/jobs/{sid}"
+    endpoint = f"{base_url}/{sid}"
     headers = make_headers(token)
     params = {"output_mode": "json"}
 
@@ -132,19 +142,22 @@ def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout):
         time.sleep(poll)
 
 
-def fetch_results(base_url, token, sid, verify_ssl):
-    endpoint = f"{base_url}/services/search/jobs/{sid}/results"
+def fetch_results(base_url, token, sid, output_mode, verify_ssl):
+    endpoint = f"{base_url}/{sid}/results"
     headers = make_headers(token)
-    params = {"output_mode": "json", "count": 0}
+    params = {"output_mode": output_mode, "count": 0}
 
     logging.info("Fetching results for job %s", sid)
     resp = requests.get(endpoint, headers=headers, params=params, verify=verify_ssl)
     resp.raise_for_status()
 
-    return resp.json().get("results", [])
+    if output_mode == "json":
+        return resp.json().get("results", [])
+
+    return resp.text
 
 
-def write_results_to_csv(results: list[dict], output_file: str):
+def write_results(results, output_file: str, output_mode: str):
     # Support full paths and ~ expansion
     output = Path(output_file).expanduser()
 
@@ -154,19 +167,20 @@ def write_results_to_csv(results: list[dict], output_file: str):
 
     logging.info("Writing results to %s", output)
 
+    if output_mode == "json":
+        output.write_text(json.dumps(results, indent=2))
+        logging.info("Finished writing %d results", len(results))
+        return
+
     if not results:
         logging.warning("No results returned. Creating empty output file.")
         output.write_text("")
         return
 
-    fieldnames = sorted({k for row in results for k in row.keys()})
+    with output.open("w", encoding="utf-8") as f:
+        f.write(results)
 
-    with output.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(results)
-
-    logging.info("Finished writing %d results", len(results))
+    logging.info("Finished writing CSV output")
 
 
 ###############################################################################
@@ -186,20 +200,21 @@ def main():
         level=log_cfg.get("log_level", "INFO"),
     )
 
-    base_url = spl["url"]
+    base_url = spl["url"].rstrip("/")
     token = spl["token"]
     search = spl["search"]
     output_file = spl["output_file"]
+    output_mode = validate_output_mode(spl.get("output_mode", "json"))
 
     verify_ssl = spl.get("verify_ssl", True)
     poll = int(spl.get("poll_interval_seconds", 2))
     timeout = int(spl.get("poll_timeout_seconds", 300))
 
     try:
-        sid = create_search_job(base_url, token, search, verify_ssl)
+        sid = create_search_job(base_url, token, search, output_mode, verify_ssl)
         wait_for_job(base_url, token, sid, verify_ssl, poll, timeout)
-        results = fetch_results(base_url, token, sid, verify_ssl)
-        write_results_to_csv(results, output_file)
+        results = fetch_results(base_url, token, sid, output_mode, verify_ssl)
+        write_results(results, output_file, output_mode)
         logging.info("Splunk search completed successfully.")
     except Exception as e:
         logging.exception("Error running Splunk job: %s", e)

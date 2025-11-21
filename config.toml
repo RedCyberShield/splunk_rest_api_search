@@ -1,6 +1,7 @@
 [splunk]
-# Splunk management URL (usually :8089) – NO trailing slash
-url = "https://your-splunk-host:8089"
+# Splunk Search Jobs endpoint (no trailing slash)
+# Example: "https://your-site.splunkcloud.com:8089/services/search/v2/jobs"
+url = "https://your-site.splunkcloud.com:8089/services/search/v2/jobs"
 
 # Splunk authentication token (just the token string, no "Splunk " prefix)
 token = "YOUR_SPLUNK_TOKEN_HERE"
@@ -9,14 +10,17 @@ token = "YOUR_SPLUNK_TOKEN_HERE"
 # You may include or omit the leading "search" keyword.
 search = "search index=_internal | head 10"
 
-# Where to save the results (CSV).
+# Output format. Supported values: "json" or "csv".
+output_mode = "json"
+
+# Where to save the results. File extension should match the output_mode.
 # This can be a relative path, or a full/absolute path.
 # Examples:
-#   "splunk_results.csv"
+#   "splunk_results.json"
 #   "/var/log/splunk/splunk_results.csv"
-#   "C:/Users/you/splunk/splunk_results.csv"
+#   "C:/Users/you/splunk/splunk_results.json"
 #   "~/splunk/output/splunk_results.csv"
-output_file = "C:/Users/you/splunk/splunk_results.csv"
+output_file = "C:/Users/you/splunk/splunk_results.json"
 
 # Optional: SSL verification
 # - true  = verify SSL certificates (recommended for production)
