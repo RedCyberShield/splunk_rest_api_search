@@ -1,11 +1,24 @@
 [splunk]
+
+# Splunk management URL (usually :8089) – NO trailing slash
 url = "https://your-splunk-host:8089"
+
+# Splunk authentication token (just the token string, no "Splunk " prefix)
 token = "YOUR_SPLUNK_TOKEN_HERE"
+
+# Your Splunk search query. You can include or omit the leading "search ".
 search = "search index=_internal | head 10"
+
+# Where to save the results (CSV in this example)
 output_file = "splunk_results.csv"
+
+# Optional: SSL verification (true to verify, false to skip certificate validation)
 verify_ssl = true
+
+# Optional: polling settings
 poll_interval_seconds = 2
 poll_timeout_seconds = 300
+
 
 [logging]
 log_dir = "logs"
