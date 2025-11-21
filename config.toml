@@ -1,35 +1,40 @@
 [splunk]
-
 # Splunk management URL (usually :8089) – NO trailing slash
 url = "https://your-splunk-host:8089"
 
 # Splunk authentication token (just the token string, no "Splunk " prefix)
 token = "YOUR_SPLUNK_TOKEN_HERE"
 
-# Your Splunk search query. You can include or omit the leading "search ".
+# Your Splunk search query.
+# You may include or omit the leading "search" keyword.
 search = "search index=_internal | head 10"
 
-# Optional: SSL verification (true to verify, false to skip certificate validation)
-verify_ssl = true
+# Where to save the results (CSV).
+# This can be a relative path, or a full/absolute path.
+# Examples:
+#   "splunk_results.csv"
+#   "/var/log/splunk/splunk_results.csv"
+#   "C:/Users/you/splunk/splunk_results.csv"
+#   "~/splunk/output/splunk_results.csv"
+output_file = "C:/Users/you/splunk/splunk_results.csv"
 
-# Optional: polling settings
-poll_interval_seconds = 2
-poll_timeout_seconds = 300
+# Optional: SSL verification
+# - true  = verify SSL certificates (recommended for production)
+# - false = skip verification (for testing/self-signed certs)
+verify_ssl = false
 
-
-# Windows (note the double backslashes or use forward slashes)
-output_file = "C:\\Users\\josh\\splunk\\splunk_results.csv"
-# output_file = "C:/Users/josh/splunk/splunk_results.csv"
-
-# Linux / macOS
-# output_file = "/var/log/splunk/splunk_results.csv"
-
-# or in your home dir
-# output_file = "~/splunk/output/splunk_results.csv"
-
+# Polling configuration
+poll_interval_seconds = 2   # seconds between job status checks
+poll_timeout_seconds = 300  # max wait time before timing out
 
 [logging]
+# Directory where log files will be stored.
+# Can be relative or a full/absolute path.
 log_dir = "logs"
-# Keep logs for 7 days
+
+# Number of days to keep log files.
+# Older logs will be deleted automatically.
 retention_days = 7
+
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
 log_level = "INFO"
