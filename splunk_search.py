@@ -145,7 +145,13 @@ def fetch_results(base_url, token, sid, verify_ssl):
 
 
 def write_results_to_csv(results: list[dict], output_file: str):
-    output = Path(output_file)
+    # Support full paths and ~ expansion
+    output = Path(output_file).expanduser()
+
+    # Make sure parent dirs exist (for full paths)
+    if output.parent and not output.parent.exists():
+        output.parent.mkdir(parents=True, exist_ok=True)
+
     logging.info("Writing results to %s", output)
 
     if not results:
