@@ -50,13 +50,13 @@ After setup completes, activate the environment:
 ### 2.1 Windows (PowerShell)
 
 ```powershell
-.env\Scripts\Activate.ps1
+.\env\Scripts\Activate.ps1
 ```
 
 ### 2.2 Windows (CMD)
 
 ```cmd
-venv\Scriptsctivate.bat
+venv\Scripts\activate.bat
 ```
 
 ### 2.3 macOS / Linux
