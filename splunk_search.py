@@ -244,30 +244,60 @@ def fetch_results(base_url, token, sid, output_mode, verify_ssl, proxies=None):
     return resp.text
 
 
-def write_results(results, output_file: str, output_mode: str):
+def build_output_path(base_path: Path, append_date: bool, suffix_number: int | None = None) -> Path:
+    """Return a new path with optional date and numeric suffix appended."""
+
+    suffixes = "".join(base_path.suffixes) or base_path.suffix
+    stem = base_path.stem
+
+    if append_date:
+        stem = f"{stem}_{datetime.now().strftime('%Y%m%d')}"
+
+    if suffix_number:
+        stem = f"{stem}-{suffix_number}"
+
+    return base_path.with_name(f"{stem}{suffixes}")
+
+
+def write_results(
+    results, output_file: str, output_mode: str, append_date_to_filename: bool
+):
     # Support full paths and ~ expansion
-    output = Path(output_file).expanduser()
+    base_path = Path(output_file).expanduser()
+    output = build_output_path(base_path, append_date_to_filename)
 
     # Make sure parent dirs exist (for full paths)
     if output.parent and not output.parent.exists():
         output.parent.mkdir(parents=True, exist_ok=True)
 
-    logging.info("Writing results to %s", output)
+    attempt = 0
+    while True:
+        try:
+            logging.info("Writing results to %s", output)
 
-    if output_mode == "json":
-        output.write_text(json.dumps(results, indent=2))
-        logging.info("Finished writing %d results", len(results))
-        return
+            if output_mode == "json":
+                output.write_text(json.dumps(results, indent=2))
+                logging.info("Finished writing %d results", len(results))
+                return
 
-    if not results:
-        logging.warning("No results returned. Creating empty output file.")
-        output.write_text("")
-        return
+            if not results:
+                logging.warning("No results returned. Creating empty output file.")
+                output.write_text("")
+                return
 
-    with output.open("w", encoding="utf-8") as f:
-        f.write(results)
+            with output.open("w", encoding="utf-8") as f:
+                f.write(results)
 
-    logging.info("Finished writing CSV output")
+            logging.info("Finished writing CSV output")
+            return
+        except PermissionError:
+            attempt += 1
+            output = build_output_path(base_path, append_date_to_filename, attempt)
+            logging.warning(
+                "Permission denied when writing results. Retrying with new filename: %s",
+                output,
+            )
+
 
 
 ###############################################################################
@@ -292,6 +322,7 @@ def main():
     search = spl["search"]
     output_file = spl["output_file"]
     output_mode = validate_output_mode(spl.get("output_mode", "json"))
+    append_date_to_filename = spl.get("append_date_to_output_file", False)
 
     verify_ssl = spl.get("verify_ssl", True)
     poll = int(spl.get("poll_interval_seconds", 2))
@@ -308,7 +339,7 @@ def main():
         results = fetch_results(
             base_url, token, sid, output_mode, verify_ssl, proxies=proxies
         )
-        write_results(results, output_file, output_mode)
+        write_results(results, output_file, output_mode, append_date_to_filename)
         logging.info("Splunk search completed successfully.")
     except Exception as e:
         logging.exception("Error running Splunk job: %s", e)
