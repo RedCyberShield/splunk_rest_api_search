@@ -35,7 +35,8 @@ poll_timeout_seconds = 300  # max wait time before timing out
 # Examples:
 #   "http://user:pass@proxy.yourcorp.com:8080"
 #   "http://proxy.yourcorp.com:8080"
-# Leave as "" to disable proxy usage.
+# Leave as "" to rely on system environment settings
+# (HTTP_PROXY/HTTPS_PROXY/NO_PROXY).
 proxy = ""
 
 [logging]

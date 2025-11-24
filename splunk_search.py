@@ -6,6 +6,7 @@ import time
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
+from urllib.parse import urlparse, urlunparse
 
 import requests
 
@@ -48,6 +49,68 @@ def cleanup_old_logs(log_path: Path, retention_days: int):
             logging.warning("Failed to delete old log %s: %s", file, e)
 
 
+def mask_proxy_credentials(proxy_url: str) -> str:
+    """Mask credentials in a proxy URL for safe logging."""
+
+    if not proxy_url:
+        return ""
+
+    try:
+        parsed = urlparse(proxy_url)
+    except Exception:
+        return proxy_url
+
+    if not parsed.username:
+        return proxy_url
+
+    username_placeholder = "****"
+    password_placeholder = "****" if parsed.password else ""
+    credentials = username_placeholder
+
+    if password_placeholder:
+        credentials = f"{credentials}:{password_placeholder}"
+
+    host = parsed.hostname or ""
+    if parsed.port:
+        host = f"{host}:{parsed.port}"
+
+    netloc = f"{credentials}@{host}" if host else credentials
+
+    return urlunparse(
+        (
+            parsed.scheme,
+            netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
+def resolve_proxies(proxy_value: str, base_url: str):
+    """Return a proxies dict for requests, preferring config over environment.
+
+    An empty return value (None) signals to requests to use its defaults,
+    including environment variables.
+    """
+
+    proxy_value = (proxy_value or "").strip()
+    if proxy_value:
+        proxies = {"http": proxy_value, "https": proxy_value}
+        logging.info("Using proxy from config: %s", mask_proxy_credentials(proxy_value))
+        return proxies
+
+    env_proxies = requests.utils.get_environ_proxies(base_url)
+    if env_proxies:
+        masked = {k: mask_proxy_credentials(v) for k, v in env_proxies.items()}
+        logging.info("Using proxy from environment: %s", masked)
+        return env_proxies
+
+    logging.info("No proxy configuration detected; connecting directly.")
+    return None
+
+
 ###############################################################################
 # CONFIG LOADING
 ###############################################################################
@@ -86,7 +149,12 @@ def validate_output_mode(value: str) -> str:
 
 
 def create_search_job(
-    base_url: str, token: str, search: str, output_mode: str, verify_ssl=True
+    base_url: str,
+    token: str,
+    search: str,
+    output_mode: str,
+    verify_ssl=True,
+    proxies=None,
 ) -> str:
     endpoint = base_url
     headers = make_headers(token)
@@ -101,7 +169,14 @@ def create_search_job(
     }
 
     logging.info("Creating search job...")
-    resp = requests.post(endpoint, headers=headers, data=data, verify=verify_ssl, timeout=30)
+    resp = requests.post(
+        endpoint,
+        headers=headers,
+        data=data,
+        verify=verify_ssl,
+        proxies=proxies,
+        timeout=30,
+    )
     resp.raise_for_status()
     payload = resp.json()
 
@@ -111,7 +186,7 @@ def create_search_job(
     return sid
 
 
-def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout):
+def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout, proxies=None):
     endpoint = f"{base_url}/{sid}"
     headers = make_headers(token)
     params = {"output_mode": "json"}
@@ -124,7 +199,13 @@ def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout):
             logging.error("Timeout waiting for job %s", sid)
             raise TimeoutError(f"Job {sid} timeout")
 
-        resp = requests.get(endpoint, headers=headers, params=params, verify=verify_ssl)
+        resp = requests.get(
+            endpoint,
+            headers=headers,
+            params=params,
+            verify=verify_ssl,
+            proxies=proxies,
+        )
         resp.raise_for_status()
         content = resp.json()["entry"][0]["content"]
 
@@ -142,13 +223,19 @@ def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout):
         time.sleep(poll)
 
 
-def fetch_results(base_url, token, sid, output_mode, verify_ssl):
+def fetch_results(base_url, token, sid, output_mode, verify_ssl, proxies=None):
     endpoint = f"{base_url}/{sid}/results"
     headers = make_headers(token)
     params = {"output_mode": output_mode, "count": 0}
 
     logging.info("Fetching results for job %s", sid)
-    resp = requests.get(endpoint, headers=headers, params=params, verify=verify_ssl)
+    resp = requests.get(
+        endpoint,
+        headers=headers,
+        params=params,
+        verify=verify_ssl,
+        proxies=proxies,
+    )
     resp.raise_for_status()
 
     if output_mode == "json":
@@ -209,11 +296,18 @@ def main():
     verify_ssl = spl.get("verify_ssl", True)
     poll = int(spl.get("poll_interval_seconds", 2))
     timeout = int(spl.get("poll_timeout_seconds", 300))
+    proxies = resolve_proxies(spl.get("proxy", ""), base_url)
 
     try:
-        sid = create_search_job(base_url, token, search, output_mode, verify_ssl)
-        wait_for_job(base_url, token, sid, verify_ssl, poll, timeout)
-        results = fetch_results(base_url, token, sid, output_mode, verify_ssl)
+        sid = create_search_job(
+            base_url, token, search, output_mode, verify_ssl, proxies=proxies
+        )
+        wait_for_job(
+            base_url, token, sid, verify_ssl, poll, timeout, proxies=proxies
+        )
+        results = fetch_results(
+            base_url, token, sid, output_mode, verify_ssl, proxies=proxies
+        )
         write_results(results, output_file, output_mode)
         logging.info("Splunk search completed successfully.")
     except Exception as e:
