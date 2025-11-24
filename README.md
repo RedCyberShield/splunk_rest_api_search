@@ -86,6 +86,7 @@ url = "https://your-splunk-host:8089"
 token = "YOUR_SPLUNK_TOKEN_HERE"
 search = "search index=_internal | head 10"
 output_file = "results.csv"
+append_date_to_output_file = false
 verify_ssl = true
 proxy = ""  # Set to your proxy URL or leave blank to use system settings
 poll_interval_seconds = 2
@@ -100,6 +101,8 @@ log_level = "INFO"
 ### Notes
 
 - `output_file` supports full paths and auto-creates directories.
+- `append_date_to_output_file` adds a `YYYYMMDD` suffix to the filename before
+  the extension when set to `true`.
 - `log_dir` supports full paths and will be created if missing.
 - Splunk search behavior matches the Splunk UI.
 - If `proxy` is left blank, the tool will log and rely on any system proxy

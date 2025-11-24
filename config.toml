@@ -22,6 +22,9 @@ output_mode = "json"
 #   "~/splunk/output/splunk_results.csv"
 output_file = "C:/Users/you/splunk/splunk_results.json"
 
+# Optional: append the current date (YYYYMMDD) to the output file name
+append_date_to_output_file = false
+
 # Optional: SSL verification
 # - true  = verify SSL certificates (recommended for production)
 # - false = skip verification (for testing/self-signed certs)
