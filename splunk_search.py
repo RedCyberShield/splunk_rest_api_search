@@ -186,6 +186,23 @@ def create_search_job(
     return sid
 
 
+def build_saved_search_endpoint(base_url: str, user: str, app: str) -> str:
+    """Return a namespaced jobs/export endpoint for running saved searches."""
+
+    parsed = urlparse(base_url)
+
+    return urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            f"/servicesNS/{user}/{app}/search/jobs/export",
+            "",
+            "",
+            "",
+        )
+    )
+
+
 def wait_for_job(base_url, token, sid, verify_ssl, poll, timeout, proxies=None):
     endpoint = f"{base_url}/{sid}"
     headers = make_headers(token)
@@ -324,20 +341,45 @@ def main():
     output_mode = validate_output_mode(spl.get("output_mode", "json"))
     append_date_to_filename = spl.get("append_date_to_output_file", False)
 
+    saved_search = spl.get("saved_search", False)
+    saved_search_user = spl.get("saved_search_user", "").strip()
+    saved_search_app = spl.get("saved_search_app", "").strip()
+    saved_search_name = spl.get("saved_search_name", search)
+
     verify_ssl = spl.get("verify_ssl", True)
     poll = int(spl.get("poll_interval_seconds", 2))
     timeout = int(spl.get("poll_timeout_seconds", 300))
     proxies = resolve_proxies(spl.get("proxy", ""), base_url)
 
+    create_endpoint = base_url
+    results_endpoint = spl.get("results_url", base_url)
+
+    if saved_search:
+        if not saved_search_user or not saved_search_app:
+            raise ValueError(
+                "saved_search_user and saved_search_app are required when saved_search is true"
+            )
+
+        create_endpoint = build_saved_search_endpoint(
+            base_url, saved_search_user, saved_search_app
+        )
+        search = f"savedsearch {saved_search_name}"
+        logging.info(
+            "Configured saved search execution for %s/%s via %s",
+            saved_search_user,
+            saved_search_app,
+            create_endpoint,
+        )
+
     try:
         sid = create_search_job(
-            base_url, token, search, output_mode, verify_ssl, proxies=proxies
+            create_endpoint, token, search, output_mode, verify_ssl, proxies=proxies
         )
         wait_for_job(
-            base_url, token, sid, verify_ssl, poll, timeout, proxies=proxies
+            results_endpoint, token, sid, verify_ssl, poll, timeout, proxies=proxies
         )
         results = fetch_results(
-            base_url, token, sid, output_mode, verify_ssl, proxies=proxies
+            results_endpoint, token, sid, output_mode, verify_ssl, proxies=proxies
         )
         write_results(results, output_file, output_mode, append_date_to_filename)
         logging.info("Splunk search completed successfully.")

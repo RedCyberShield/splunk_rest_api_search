@@ -10,6 +10,15 @@ token = "YOUR_SPLUNK_TOKEN_HERE"
 # You may include or omit the leading "search" keyword.
 search = "search index=_internal | head 10"
 
+# Set to true to run a saved search instead of an ad-hoc query. When enabled
+# you must provide the Splunk username and app that own the saved search.
+saved_search = false
+# The saved search name to run. Defaults to the value in `search` when blank.
+saved_search_name = ""
+# Splunk namespace for the saved search
+saved_search_user = ""
+saved_search_app = ""
+
 # Output format. Supported values: "json" or "csv".
 output_mode = "json"
 
