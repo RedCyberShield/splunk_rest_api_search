@@ -82,10 +82,19 @@ This file must exist in the same directory as `splunk_search.py` unless you spec
 
 ```toml
 [splunk]
-url = "https://your-splunk-host:8089"
+# Splunk Search Jobs endpoint (no trailing slash)
+url = "https://your-splunk-host:8089/services/search/v2/jobs"
 token = "YOUR_SPLUNK_TOKEN_HERE"
 search = "search index=_internal | head 10"
+
+# Saved search support
+saved_search = false
+saved_search_name = ""
+saved_search_user = ""
+saved_search_app = ""
+
 output_file = "results.csv"
+output_mode = "json"  # or "csv"
 append_date_to_output_file = false
 verify_ssl = true
 proxy = ""  # Set to your proxy URL or leave blank to use system settings
@@ -103,6 +112,10 @@ log_level = "INFO"
 - `output_file` supports full paths and auto-creates directories.
 - `append_date_to_output_file` adds a `YYYYMMDD` suffix to the filename before
   the extension when set to `true`.
+- Set `saved_search` to `true` and provide `saved_search_user`/`saved_search_app`
+  to run a saved search through the `/servicesNS/<user>/<app>/search/jobs/export`
+  endpoint. The tool will continue to poll results from the standard jobs
+  endpoint configured in `url`.
 - `log_dir` supports full paths and will be created if missing.
 - Splunk search behavior matches the Splunk UI.
 - If `proxy` is left blank, the tool will log and rely on any system proxy
