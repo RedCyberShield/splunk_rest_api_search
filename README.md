@@ -87,6 +87,7 @@ token = "YOUR_SPLUNK_TOKEN_HERE"
 search = "search index=_internal | head 10"
 output_file = "results.csv"
 verify_ssl = true
+proxy = ""  # Set to your proxy URL or leave blank to use system settings
 poll_interval_seconds = 2
 poll_timeout_seconds = 300
 
@@ -101,6 +102,8 @@ log_level = "INFO"
 - `output_file` supports full paths and auto-creates directories.
 - `log_dir` supports full paths and will be created if missing.
 - Splunk search behavior matches the Splunk UI.
+- If `proxy` is left blank, the tool will log and rely on any system proxy
+  settings (e.g., `HTTP_PROXY`/`HTTPS_PROXY`).
 
 ---
 
